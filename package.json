@@ -1,5 +1,5 @@
 {
-  "name": "partyTickers",
+  "name": "service",
   "version": "0.0.0",
   "description": "TypeScript + Express + Routing Controllers API Server",
   "author": "",
