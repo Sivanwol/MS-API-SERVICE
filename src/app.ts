@@ -14,13 +14,6 @@ import { routingControllersToSpec } from 'routing-controllers-openapi';
 import swaggerUi from 'swagger-ui-express';
 import errorMiddleware from '@middlewares/error.middleware';
 import { logger, stream } from '@utils/logger';
-import { graphqlExpress, graphiqlExpress } from 'graphql-server-express';
-import { execute, subscribe } from 'graphql';
-import { SubscriptionServer } from 'subscriptions-transport-ws';
-import schema from './graph-ql/schema';
-import depthLimit from 'graphql-depth-limit';
-import { BindJWTAUth } from '@/passport/jwt';
-import { BindLocalAUth } from '@/passport/local';
 import { RabbitMQConnection } from '@utils/RabbitMQConnection';
 import { loadEvents } from '@/events';
 
@@ -40,8 +33,6 @@ class App {
     this.initializeRoutes( Controllers );
     this.initializeSwagger( Controllers );
     this.initializeErrorHandling();
-    this.initializeGraphQL();
-    this.initializeWebSockets();
   }
 
   public listen() {
@@ -67,65 +58,9 @@ class App {
 
   private initializeMiddlewaresPassport() {
     // this.app.use( session() )
-    BindLocalAUth()
-    BindJWTAUth()
     this.app.use( passport.initialize() );
     // this.app.use(passport.session());
   }
-
-  private initializeWebSockets() {
-    // We wrap the express server so that we can attach the WebSocket for subscriptions
-    const ws = createServer( this.app );
-
-    ws.listen( process.env.WSPORT, () => {
-      logger.info( `=================================` );
-      logger.info( `======= ENV: ${this.env} =======` );
-      logger.info( `🚀 WS GraphQL Server is now running on http://0.0.0.0:${process.env.WSPORT}` );
-      logger.info( `=================================` );
-
-      // Set up the WebSocket for handling GraphQL subscriptions
-      new SubscriptionServer(
-        {
-          execute,
-          subscribe,
-          schema,
-        },
-        {
-          server: ws,
-          path: '/subscriptions',
-        },
-      );
-    } );
-  }
-
-  private initializeGraphQL() {
-    this.app.use(
-      '/graphql',
-      bodyParser.json(),
-      graphqlExpress( (req, res) => ({
-        schema,
-        debug: process.env.NODE_ENV === 'development',
-        tracing: process.env.NODE_ENV === 'development',
-        onError: ( e ) => {
-          logger.error( e )
-          console.error( e )
-        },
-        context: () => ({req, res}) ,
-        validationRules: [depthLimit( parseInt( process.env.GRAPH_QL_MAX_DEPTH ) )],
-      }) ),
-    );
-
-    this.app.use(
-      '/graphiql',
-      graphiqlExpress( {
-        endpointURL: '/graphql',
-        subscriptionsEndpoint: `ws://${process.env.PUB_SUB_URL}`,
-
-
-      } ),
-    );
-  }
-
   private initializeMiddlewares() {
     this.app.use( morgan( process.env.LOGFormat, {stream} ) );
     this.app.use( hpp() );
